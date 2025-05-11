@@ -3,9 +3,10 @@ from operator import index
 
 
 class BankAccount:
-    def __init__(self, account_holder, initial_balance=0):
+    def __init__(self, account_holder, pin, initial_balance=0):
         self.account_holder = account_holder
         self.__balance = initial_balance  # Private attribute
+        self.__pin = pin
 
     def deposit(self, amount):
         if amount < 0:
@@ -38,67 +39,76 @@ class BankAccount:
         self.__balance += amount
         print(f"({other_account.account_holder} > {self.account_holder})Transfer accepted, New balance: {self.__balance}")
 
+    def check_pin(self, pin):
+        return self.__pin == pin
+
+    def get_balance(self):
+        return self.__balance
+
 class ATM:
-    def __init__(self):
-        self.pin = ""
+    def __init__(self, accounts):
+        self.accounts = accounts
+        self.current_account = False
         self.balance = 0
 
     def menu(self):
-        user_input = int(input("""
+        print("""
             0. Enter 0 to exit
-            1. Enter 1 to create pin
-            2. Enter 2 to deposit
-            3. Enter 3 to withdraw
-            4. Enter 4 to check balance
-        """))
+            1. Enter 1 to deposit
+            2. Enter 2 to withdraw
+            3. Enter 3 to check balance
+        """)
+        user_input = int(input("Vyber si možnost: "))
 
         if user_input == 1:
-            self.create_pin()
-        elif user_input == 2:
             self.deposit()
-        elif user_input == 3:
+        elif user_input == 2:
             self.withdraw()
-        elif user_input == 4:
+        elif user_input == 3:
             self.check_balance()
         elif user_input < 0 or user_input > 4:
             print("Please Enter a valid input")
 
         return user_input
 
-    def create_pin(self):
-        if self.pin == "":
-            self.pin = input("Create you pin please: ")
-            print("Your pin has been set successfully")
-        else:
-            print("There is already a pin")
+    def login(self):
+        print("Prosím přihlaste se do svého účtu: ")
+        i = 0
+        for account in self.accounts:
+            print(f"{i + 1} - {account.account_holder}")
+            i += 1
 
-        self.menu()
+        account_choice = int(input("Vyberte účet: ")) - 1
 
-    def check_pin(self):
-        pin = input("Enter your pin please: ")
-        if pin == self.pin:
-            return 1
+        if account_choice < 0 or account_choice >= i:
+            print("Error")
+            return self.login()
+
+        selected_account = self.accounts[account_choice]
+        pin = input("Zadejte PIN: ")
+
+        if selected_account.check_pin(pin):
+            self.current_account = selected_account
+            print(f"Vítejte {selected_account.account_holder}")
+            self.menu()
         else:
-            return 0
+            print("Nesprávně zadaný PIN, zkuste to znovu prosím")
+            return self.login
 
     def deposit(self):
-        if self.pin == "":
-            self.create_pin()
-
-        if self.check_pin():
-            amount = input("Please enter your deposit amount: ")
-            self.balance += int(amount)
+        if self.current_account:
+            amount = int(input("Please enter your deposit amount: "))
+            self.current_account.deposit(amount)
             print("Amount has been deposited successfully")
         else:
             print("You have entered wrong pin, please re-enter your pin")
-            self.deposit()
+            self.login()
+            return
 
         self.menu()
 
     def withdraw(self):
-        if self.pin == "":
-            self.create_pin()
-        if self.check_pin():
+        if self.current_account:
             amount = int(input("Please enter your withdrawal amount or press 0 to return to menu: "))
             if amount == 0:
                 pass
@@ -109,26 +119,24 @@ class ATM:
                 print("Amount has been withdrawn successfully")
             else:
                 print("Insufficient balance")
-                self.withdraw()
+                self.current_account.withdraw(amount)
         else:
             print("You have entered wrong pin")
-            self.withdraw()
+            self.login()
+            return
 
         self.menu()
 
     def check_balance(self):
-        if self.pin == "":
-            self.create_pin()
-        if self.check_pin():
-            print(f"Your current balance is : {self.balance}")
+        if self.current_account:
+            print(f"Your current balance is : {self.current_account.get_balance()}")
         else:
             print("You have entered wrong pin")
-            self.check_balance()
+            self.login()
+            return
 
         self.menu()
 
-atm = ATM()
-atm.menu()
 
 #
 #
@@ -136,7 +144,7 @@ atm.menu()
 #
 #
 #
-bank_accounts = [BankAccount('John Pork', 1000)]
+bank_accounts = [BankAccount('John Pork', '1234', 1000)]
 
 def menu():
     print("Vítejte v bance!")
@@ -173,7 +181,8 @@ def print_accounts():
 
 def add_account():
     name = input("Název účtu: ")
-    bank_accounts.append(BankAccount(name))
+    pin = input("Zadejte nový pin: ")
+    bank_accounts.append(BankAccount(name, pin))
 
 def transfer():
     print("Dostupné účty:")
@@ -207,13 +216,11 @@ def deposit():
     bank_accounts[int(index_from)-1].deposit(int(amount))
 
 def main():
-    bank = ATM()
-
     print("Zvolte 1 pro ATM")
 
     choice = int(input("Zvolte akci:"))
     if choice == 1:
-        bank.menu()
-        return
+        atm = ATM(bank_accounts)
+        atm.menu()
 
 menu()
